@@ -1,3 +1,18 @@
+--TODO slow must be non functionnal
+function addToSorted(tab, value)
+	if tab == nil then
+		return value
+	elseif tab.key >= value.key then
+		value.next = tab
+		return value
+	else
+		tab.next = addToSorted(tab.next, value)
+		return tab
+	end
+end
+
+
+
 --Turtle base
 os.loadAPI("ocs/apis/sensor")
 
@@ -61,13 +76,9 @@ function find_tree()
 	function solid(a,b,c)
 		return res(a,b,c)~= nil and res(a,b,c)["Type"] == "SOLID"
 	end
-	--print(solid(2,1,0))
-	--print(solid(1,1,0))
-	--print(solid(3,1,0))
-	--print(solid(2,1,1))
-	--print(solid(2,1,-1))
-	dist = 99999
-	candidate = nil
+	local n = 0
+	local dist = 99999
+	local candidates = nil
 	for ty=ym,yM do
 		for tx=xm,xM do
 			for tz=zm,zM do
@@ -76,10 +87,11 @@ function find_tree()
 				if(solid(tx,ty,tz) and not solid(tx-1,ty,tz) and not solid(tx+1,ty,tz) and not solid(tx,ty,tz-1) and not solid(tx,ty,tz+1) and
 				solid(tx,ty+1,tz) and not solid(tx-1,ty+1,tz) and not solid(tx+1,ty+1,tz) and not solid(tx,ty+1,tz-1) and not solid(tx,ty+1,tz+1)) then
 					--print(tx,ty,tz)
-					if((tx-x)*(tx-x)+(ty-y)*(ty-y)+(tz-z)*(tz-z)<dist) then
+					------if((tx-x)*(tx-x)+(ty-y)*(ty-y)+(tz-z)*(tz-z)<dist) then
 						dist = (tx-x)*(tx-x)+(ty-y)*(ty-y)+(tz-z)*(tz-z)
-						candidate = {tx,ty,tz}
-					end
+						candidates = addToSorted(candidates, {value = {tx,ty,tz}, key = dist})
+						n = n + 1
+					------end
 				end
 			end
 			end
@@ -88,9 +100,10 @@ function find_tree()
 	if(candidate == nil) then
 		print("No tree found")
 	else
-		print("Tree in (",candidate[1],",",candidate[2],",",candidate[3],") dist: ",dist)
+		--print("Tree in (",candidates.value[1],",",candidates.value[2],",",candidates.value[3],") dist: ",candidates.key)
+		print(n, " tree candidates found")
 	end
-	return candidate
+	return candidates
 end
 
 function find_block(blockType)
@@ -387,21 +400,66 @@ end
 --dest = find_tree()
 --moveCloseTo(dest[1],dest[2],dest[3])
 --moveCloseTo(0,0,0)
+--MUST BE IN FRONT OF A TREE
+function cutTree()
+	tt.dig()
+	front()
+	setFreeCell(x,y,z,"AIR")
+	local cont = true
+	while cont do
+		local success, data = turtle.inspectUp()
+		if success then
+			if data["name"] == "minecraft:log" then
+				tt.digUp()
+				tt.up()
+				setFreeCell(x,y,z,"AIR")
+				y = y + 1
+			else
+				--print("it's not a tree")
+				cont = false
+			end
+			--for k,v in pairs(data) do
+			--	print(k,":",v)
+			--end
+		else
+			cont = false
+		end
+	end
+end
 
-dest = find_tree()
-
-moveCloseTo(dest[1],dest[2],dest[3])
-faceTo(dest[1],dest[2],dest[3])
-tt.dig()
-print("done")
-goToRadar()
-
-
-
+function woodCutter()
+	--goToRadar() TODO Memory track
+	candidates = find_tree()
+	while(candidates ~= nil) do
+		dest = candidates.value
+		moveCloseTo(dest[1],dest[2],dest[3])
+		faceTo(dest[1],dest[2],dest[3])
+		local success, data = turtle.inspect()
+		if success then
+			if data["name"] == "minecraft:log" then
+				--print("it's a tree")
+				cutTree()
+			else
+				print("it's not a tree")
+			end
+			--for k,v in pairs(data) do
+			--	print(k,":",v)
+			--end
+		end
+		candidates = candidates.next
+	end
+	goToRadar()
+end
+--find_tree()
+--print(solid(1,0,4))
+--print(solid(1,1,4))
+woodCutter()
 --stepTo(0,0,-2)
---moveTo(0,0,-2)
+--moveTo(1,5,-2)
+--goToRadar()
 --turnTo(3)
-
+--moveTo(0,0,-1)
+--turnTo(0)
 exit()
 
 local t = sensor.wrap("right")
